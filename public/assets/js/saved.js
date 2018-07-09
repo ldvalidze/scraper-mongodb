@@ -4,7 +4,7 @@ $(document).ready(function() {
     var articleContainer = $(".article-container");
     // Adding event listeners for dynamically generated buttons for deleting articles,
     // pulling up article notes, saving article notes, and deleting article notes
-    $(document).on("click", ".btn.delete", handleArticleDelete);
+    $(document).on("click", ".btn.delete", handleArticleUnsave);
     $(document).on("click", ".btn.notes", handleArticleNotes);
     $(document).on("click", ".btn.save", handleNoteSave);
     $(document).on("click", ".btn.note-delete", handleNoteDelete);
@@ -12,7 +12,7 @@ $(document).ready(function() {
   
     function initPage() {
       // Empty the article container, run an AJAX request for any saved headlines
-      $.get("/api/headlines?saved=true").then(function(data) {
+      $.get("/api/headlines/saved").then(function(data) {
         articleContainer.empty();
         // If we have headlines, render them to the page
         if (data && data.length) {
@@ -23,6 +23,8 @@ $(document).ready(function() {
         }
       });
     }
+
+    initPage();
   
     function renderArticles(articles) {
       // This function handles appending HTML containing our article data to the page
@@ -46,8 +48,8 @@ $(document).ready(function() {
       var cardHeader = $("<div class='card-header'>").append(
         $("<h3>").append(
           $("<a class='article-link' target='_blank' rel='noopener noreferrer'>")
-            .attr("href", article.url)
-            .text(article.headline),
+            .attr("href", article.link)
+            .text(article.title),
           $("<a class='btn btn-danger delete'>Delete From Saved</a>"),
           $("<a class='btn btn-info notes'>Article Notes</a>")
         )
@@ -92,6 +94,7 @@ $(document).ready(function() {
       // Also setting up a currentNote variable to temporarily store each note
       var notesToRender = [];
       var currentNote;
+
       if (!data.notes.length) {
         // If we have no notes, just display a message explaining this
         currentNote = $("<li class='list-group-item'>No notes for this article yet.</li>");
@@ -102,7 +105,7 @@ $(document).ready(function() {
           // Constructs an li element to contain our noteText and a delete button
           currentNote = $("<li class='list-group-item note'>")
             .text(data.notes[i].noteText)
-            .append($("<button class='btn btn-danger note-delete'>x</button>"));
+            .append($("<button noteId=" + data.notes[i]._id + " class='btn btn-danger note-delete'>x</button>"));
           // Store the note id on the delete button for easy access when trying to delete
           currentNote.children("button").data("_id", data.notes[i]._id);
           // Adding our currentNote to the notesToRender array
@@ -113,10 +116,10 @@ $(document).ready(function() {
       $(".note-container").append(notesToRender);
     }
   
-    function handleArticleDelete() {
+    function handleArticleUnsave() {
       // This function handles deleting articles/headlines
       // We grab the id of the article to delete from the card element the delete button sits inside
-      var articleToDelete = $(this)
+      var articleToUnsave = $(this)
         .parents(".card")
         .data();
   
@@ -124,10 +127,12 @@ $(document).ready(function() {
       $(this)
         .parents(".card")
         .remove();
+        articleToUnsave.saved = false;
       // Using a delete method here just to be semantic since we are deleting an article/headline
       $.ajax({
-        method: "DELETE",
-        url: "/api/headlines/" + articleToDelete._id
+        method: "PUT",
+        url: "/api/headlines/unsave/" + articleToUnsave._id,
+        data: articleToUnsave
       }).then(function(data) {
         // If this works out, run initPage again which will re-render our list of saved articles
         if (data.ok) {
@@ -141,6 +146,7 @@ $(document).ready(function() {
       var currentArticle = $(this)
         .parents(".card")
         .data();
+
       // Grab any notes with this headline/article id
       $.get("/api/notes/" + currentArticle._id).then(function(data) {
         // Constructing our initial HTML to add to the notes modal
@@ -149,15 +155,16 @@ $(document).ready(function() {
           $("<hr>"),
           $("<ul class='list-group note-container'>"),
           $("<textarea placeholder='New Note' rows='4' cols='60'>"),
-          $("<button class='btn btn-success save'>Save Note</button>")
+          $("<button headlineId=" + currentArticle._id + " class='btn btn-success save'>Save Note</button>")
         );
+
         // Adding the formatted HTML to the note modal
         bootbox.dialog({
           message: modalText,
           closeButton: true
         });
         var noteData = {
-          _id: currentArticle._id,
+          _headlineId: currentArticle._id,
           notes: data || []
         };
         // Adding some information about the article and article notes to the save button for easy access
@@ -179,7 +186,8 @@ $(document).ready(function() {
       // If we actually have data typed into the note input field, format it
       // and post it to the "/api/notes" route and send the formatted noteData as well
       if (newNote) {
-        noteData = { _headlineId: $(this).data("article")._id, noteText: newNote };
+        noteData = { _headlineId: $(this).attr("headlineId"), noteText: newNote };
+
         $.post("/api/notes", noteData).then(function() {
           // When complete, close the modal
           bootbox.hideAll();
@@ -191,19 +199,25 @@ $(document).ready(function() {
       // This function handles the deletion of notes
       // First we grab the id of the note we want to delete
       // We stored this data on the delete button when we created it
-      var noteToDelete = $(this).data("_id");
+      var noteToDelete = $(this).attr("noteId");
       // Perform an DELETE request to "/api/notes/" with the id of the note we're deleting as a parameter
       $.ajax({
         url: "/api/notes/" + noteToDelete,
         method: "DELETE"
       }).then(function() {
+        console.log("hello? why isn't this working? Whatevs, I'll just run it synchronously.");
         // When done, hide the modal
         bootbox.hideAll();
       });
+
+      bootbox.hideAll();
     }
   
     function handleArticleClear() {
-      $.get("api/clear")
+      $.ajax({
+        url: "/api/clear",
+        method: "DELETE"
+      })
         .then(function() {
           articleContainer.empty();
           initPage();

@@ -18,7 +18,8 @@ exports.fetchHeadlines = function (req, res) {
             // Add the text and href of every link, and save them as properties of the result object
             result.title = $(this).children(".story-content").children("a").children(".story-title").text();
             result.link = 'https://www.reuters.com/' + $(this).children(".story-content").children("a").attr("href");
-            result.summary = $(this).children(".story-content").children("p").text()
+            result.summary = $(this).children(".story-content").children("p").text();
+            result.saved = false;
 
             // Create a new Article using the `result` object built from scraping
             db.Headline.create(result)

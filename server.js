@@ -3,7 +3,7 @@ const bodyParser = require("body-parser");
 const logger = require("morgan");
 const mongoose = require("mongoose");
 // const db = require("./models");
-const PORT = 3001;
+const PORT = process.env.PORT || 8080;
 const app = express();
 const exphbs = require("express-handlebars");
 
@@ -25,7 +25,14 @@ const view_routes = require('./routes/view');
 app.use(view_routes);
 
 // Connect to the Mongo DB
-mongoose.connect("mongodb://localhost:27017/scrapeAndComment");
+// mongoose.connect("mongodb://localhost:27017/scrapeAndComment");
+
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/scraper-mongodb";
+
+// Set mongoose to leverage built in JavaScript ES6 Promises
+// Connect to the Mongo DB
+mongoose.Promise = Promise;
+mongoose.connect(MONGODB_URI);
 
 // Start the server
 app.listen(PORT, function() {
