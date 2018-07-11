@@ -25,14 +25,16 @@ const view_routes = require('./routes/view');
 app.use(view_routes);
 
 // Connect to the Mongo DB
-// mongoose.connect("mongodb://localhost:27017/scrapeAndComment");
+// mongoose.connect("mongodb://localhost:27017/scrapeAndComment");scraper-mongodb
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/scraper-mongodb";
+var MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost/scraper-mongodb";
 
 // Set mongoose to leverage built in JavaScript ES6 Promises
 // Connect to the Mongo DB
 mongoose.Promise = Promise;
-mongoose.connect(MONGODB_URI);
+mongoose.connect(MONGODB_URI, {
+  useMongoClient: true
+});
 
 // Start the server
 app.listen(PORT, function() {
